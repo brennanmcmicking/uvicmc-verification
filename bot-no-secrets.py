@@ -1,5 +1,3 @@
-# NzM0MTIxODA2MzY5MzkwNzA0.XxNGNQ.ufsJIGFmuSOk8PuoNx2r9IMPhRQ
-
 import discord
 from datetime import datetime
 import requests
