@@ -1,3 +1,4 @@
+import secrets
 import discord
 from datetime import datetime
 import requests
@@ -71,12 +72,12 @@ async def on_message(message):
             discordid = message.author.id
             await log(f"Got discord id: {discordid}")
             encoded_jwt = jwt.encode(
-                {'mcuuid': mcuuid, 'discordid': discordid, 'referred': referred}, 'secret', algorithm='HS256')
+                {'mcuuid': mcuuid, 'discordid': discordid, 'referred': referred}, secrets.get_jwt_secret(), algorithm='HS256')
             await log("Encoded payload")
             s = SMTP(host='smtp.gmail.com', port=587)
             await log("Connected to SMTP server")
             s.starttls()
-            s.login('brennanbottester', 'EMAIL_PASSWORD')
+            s.login(secrets.get_email_username(), secrets.get_email_password())
             await log("logged into brennanbottester@gmail.com")
             msg = MIMEMultipart()
             msg['From'] = 'brennanbottester@gmail.com'
@@ -106,4 +107,4 @@ async def on_message(message):
                     "Sent verification email! Please check your netlink email (or tell your referrer to check their email) (webmail.uvic.ca)")
                 await log("Sent message; awaiting verification")
 
-client.run("BOT_TOKEN")
+client.run(secrets.get_bot_token())
