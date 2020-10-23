@@ -43,6 +43,13 @@ class DiscordBot(threading.Thread):
     def run(self):
         self.client.run(secrets.get_bot_token())
     
+    async def receive_success(self, discorduuid, roleuid):
+        uvicmc = client.get_guild(UVICMC_GUILDID)
+        member = uvicmc.get_member(discorduuid)
+        role = uvicmc.get_role(roleuid)
+        member.add_roles(role)
+
+
     async def send_message(self, message):
         print(f"[BRENNAN] got the callback with message: {message}")
         # server = self.client.get_guild(219649098989568000)
@@ -62,12 +69,6 @@ class DiscordBot(threading.Thread):
 
 
 class CallbackHandler(commands.Cog):
-    def receive_success(self, discorduuid, roleuid):
-        uvicmc = client.get_guild(UVICMC_GUILDID)
-        member = uvicmc.get_member(discorduuid)
-        role = uvicmc.get_role(roleuid)
-        member.add_roles(role)
-
     def __init__(self, client, discordbot):
         threading.Thread.__init__(self)
         self.q = queue.Queue()
@@ -77,22 +78,20 @@ class CallbackHandler(commands.Cog):
 
     def OnThread(self, message):
         print(f"got {message} on the thread")
-        self.discordbot.q.put(message)
+        self.q.put(message)
 
     @tasks.loop(seconds=5.0)
     async def check_for_message(self):
-        print("starting while loop")
-        while True:
-            try:
-                message = self.q.get(timeout=self.timeout)
-                print(f"popped {message} off queue")
-                # asyncio.run_coroutine_threadsafe(self.discordbot.callback(message), self.discordbot.loop)
-                # asyncio.run(self.callback(message))
-                self.discordbot.callback(message)
-            except Exception as e:
-                if str(e) != "":
-                    print("exception in callback handler")
-                    print(e)
+        try:
+            message = self.q.get(timeout=self.timeout)
+            print(f"popped {message} off queue")
+            # asyncio.run_coroutine_threadsafe(self.discordbot.callback(message), self.discordbot.loop)
+            # asyncio.run(self.callback(message))
+            await self.discordbot.send_message(message)
+        except Exception as e:
+            if str(e) != "":
+                print("exception in callback handler")
+                print(e)
 
 
 
@@ -112,9 +111,11 @@ async def log(eventmsg):
 discordbot = DiscordBot(client)
 discordbot.start()
 
+'''
 handler = CallbackHandler(client, discordbot)
 handler.start()
-
+'''
+cb_handler = CallbackHandler(client, discordbot)
 '''
             # the user wants to link their discord to their netlink id in the database; we must send another verification email
             mcusername = message.content.split(' ')[1]
@@ -175,7 +176,7 @@ def api_message():
     if 'message' in request.args:
         message = str(request.args['message'])
         # print(f"[BRENNAN] got the callback with message: {message}")
-        handler.OnThread(message)
+        cb_handler.OnThread(message)
         # discordbot.callback(msg)
         return 'success'
     
