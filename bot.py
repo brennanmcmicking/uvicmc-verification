@@ -44,11 +44,16 @@ class DiscordBot(threading.Thread):
         self.client.run(secrets.get_bot_token())
     
     async def receive_success(self, discorduuid, roleuid):
+        print(f"attempting to give user {discorduuid} role {roleuid}")
         uvicmc = client.get_guild(UVICMC_GUILDID)
-        member = uvicmc.get_member(discorduuid)
-        role = uvicmc.get_role(roleuid)
-        member.add_roles(role)
-
+        print(uvicmc.name)
+        member = await uvicmc.fetch_member(discorduuid)
+        print(member.name)
+        role = uvicmc.get_role(int(roleuid))
+        print(role)
+        await member.add_roles(role)
+        await member.send(f"Gave you the {role} role in {uvicmc.name}")
+        print(f"Gave {member.name} {role}")
 
     async def send_message(self, message):
         print(f"[BRENNAN] got the callback with message: {message}")
@@ -62,37 +67,46 @@ class DiscordBot(threading.Thread):
         except Exception as e:
             print("exception in discord bot callback")
             print(e)
-    
-    def callback(self, message):
-        loop = asyncio.new_event_loop()
-        loop.run_until_complete(send_message(message))
 
 
 class CallbackHandler(commands.Cog):
     def __init__(self, client, discordbot):
-        threading.Thread.__init__(self)
-        self.q = queue.Queue()
+        # threading.Thread.__init__(self)
+        self.message_queue = queue.Queue()
+        self.role_queue = queue.Queue()
         self.timeout = 1.0/60
         self.discordbot = discordbot
-        self.check_for_message.start()
+        self.check_for_action.start()
 
-    def OnThread(self, message):
+    def queue_message(self, message):
         print(f"got {message} on the thread")
-        self.q.put(message)
+        self.message_queue.put(message)
+    
+    def queue_role(self, uuid, role):
+        print(f"got user: {uuid} and role: {role}")
+        self.role_queue.put([uuid, role])
 
-    @tasks.loop(seconds=5.0)
-    async def check_for_message(self):
+    @tasks.loop(seconds=1.0)
+    async def check_for_action(self):
         try:
-            message = self.q.get(timeout=self.timeout)
-            print(f"popped {message} off queue")
-            # asyncio.run_coroutine_threadsafe(self.discordbot.callback(message), self.discordbot.loop)
-            # asyncio.run(self.callback(message))
+            message = self.message_queue.get(timeout=self.timeout)
+            print(f"got message from queue")
             await self.discordbot.send_message(message)
         except Exception as e:
             if str(e) != "":
                 print("exception in callback handler")
                 print(e)
 
+        try:
+            data = self.role_queue.get(timeout=self.timeout)
+            uuid = data[0]
+            role = data[1]
+            print("got role/uuid from queue")
+            await self.discordbot.receive_success(uuid, role)
+        except Exception as e:
+            if str(e) != "":
+                print("exception in callback handler")
+                print(e)
 
 
 async def log(eventmsg):
@@ -104,90 +118,34 @@ async def log(eventmsg):
                 f.write(f"[{datetime.now()}]: {eventmsg}\n")
         except Exception as e:
             print(str(e))
-            
-
-# threading.Thread(target=client.run(secrets.get_bot_token()), daemon=True)
 
 discordbot = DiscordBot(client)
 discordbot.start()
 
-'''
-handler = CallbackHandler(client, discordbot)
-handler.start()
-'''
 cb_handler = CallbackHandler(client, discordbot)
-'''
-            # the user wants to link their discord to their netlink id in the database; we must send another verification email
-            mcusername = message.content.split(' ')[1]
-            await log(f"Received minecraft username: {mcusername}")
-            res = requests.get(
-                f"https://api.mojang.com/users/profiles/minecraft/{mcusername}").json()
-            mcuuid = res['id']
-            await log(f"Got uuid of {mcusername}: {mcuuid}")
-            # now we find the associated netlink email in the database, as well as the "referred" flag
-            netlink = "brennanmcmicking@uvic.ca"  # for now we just hardcode it
-            referred = False  # this is hardcoded ONLY FOR NOW as well
-            await log(f"Got netlink email associated with {mcusername}: {netlink}")
-            discordid = message.author.id
-            await log(f"Got discord id: {discordid}")
-            encoded_jwt = jwt.encode(
-                {'mcuuid': mcuuid, 'discordid': discordid, 'referred': referred}, secrets.get_jwt_secret(), algorithm='HS256')
-            await log("Encoded payload")
-            s = SMTP(host='smtp.gmail.com', port=587)
-            await log("Connected to SMTP server")
-            s.starttls()
-            s.login(secrets.get_email_username(), secrets.get_email_password())
-            await log("logged into brennanbottester@gmail.com")
-            msg = MIMEMultipart()
-            msg['From'] = 'brennanbottester@gmail.com'
-            msg['To'] = netlink
-            msg['Subject'] = "UVicMC Discord-Minecraft Verification"
-
-            body = f"""
-                <html>
-                    <head />
-                    <body>
-                        Please <a href=https://www.uvicmc.club/link?jwt={encoded_jwt}>click this link</a> to connect discord account {message.author} with Minecraft user {mcusername}
-                    </body>
-                </html>
-            """
-            msg.attach(MIMEText(body, 'html'))
-
-            await log("Succesfully created message object")
-
-            s.send_message(msg)
-            if mcuuid in pending:
-                await message.author.send(
-                    "You are already pending for discord verification. The email has been sent again. Please check your netlink email (or tell your referrer to check their email)")
-                await log(f"User {message.author.id} resent verification message; awaiting verificationd")
-            else:
-                pending.append(mcuuid)
-                message.author.send(
-                    "Sent verification email! Please check your netlink email (or tell your referrer to check their email) (webmail.uvic.ca)")
-                await log("Sent message; awaiting verification")
-'''
 
 app = flask.Flask(__name__)
-# app.config["DEBUG"] = True
 
 @app.route('/api/v1/send_message', methods=['GET'])
 def api_message():
     print("received api call")
     if 'message' in request.args:
         message = str(request.args['message'])
-        # print(f"[BRENNAN] got the callback with message: {message}")
-        cb_handler.OnThread(message)
-        # discordbot.callback(msg)
-        return 'success'
+        cb_handler.queue_message(message)
+        return 'message success'
     
-    return 'failure'
+    return 'message failure'
+
+@app.route('/api/v1/give_role', methods=['GET'])
+def api_():
+    print("received api call")
+    if 'uuid' in request.args and 'role' in request.args:
+        uuid = str(request.args['uuid'])
+        role = str(request.args['role'])
+        cb_handler.queue_role(uuid, role)
+        return 'role passed onto discord bot'
+    
+    return 'role failure'
 
 print("attempting to start api")
 app.run()
-
-'''
-threading.Thread(target=app.run())
-
-print("running discord client")
-client.run(secrets.get_bot_token())
-'''
