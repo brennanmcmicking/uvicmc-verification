@@ -1,11 +1,9 @@
 import secrets
 import discord
 from discord.ext import tasks, commands
-from datetime import datetime
 import requests
 import queue
 import threading
-import asyncio
 
 import flask
 from flask import request
@@ -14,6 +12,7 @@ from flask import request
 UVICMC_GUILDID = 219649098989568000
 
 client = discord.Client()
+
 
 @client.event
 async def on_ready():
@@ -35,6 +34,7 @@ async def on_message(message):
                 message.author.send(res["error"])
             '''
 
+
 class DiscordBot(threading.Thread):
     def __init__(self, client):
         self.client = client
@@ -42,7 +42,7 @@ class DiscordBot(threading.Thread):
 
     def run(self):
         self.client.run(secrets.get_bot_token())
-    
+
     async def receive_success(self, discorduuid, roleuid):
         print(f"attempting to give user {discorduuid} role {roleuid}")
         uvicmc = client.get_guild(UVICMC_GUILDID)
@@ -71,7 +71,6 @@ class DiscordBot(threading.Thread):
 
 class CallbackHandler(commands.Cog):
     def __init__(self, client, discordbot):
-        # threading.Thread.__init__(self)
         self.message_queue = queue.Queue()
         self.role_queue = queue.Queue()
         self.timeout = 1.0/60
@@ -81,7 +80,7 @@ class CallbackHandler(commands.Cog):
     def queue_message(self, message):
         print(f"got {message} on the thread")
         self.message_queue.put(message)
-    
+
     def queue_role(self, uuid, role):
         print(f"got user: {uuid} and role: {role}")
         self.role_queue.put([uuid, role])
@@ -109,22 +108,13 @@ class CallbackHandler(commands.Cog):
                 print(e)
 
 
-async def log(eventmsg):
-    await client.wait_until_ready()
-
-    if not client.is_closed():
-        try:
-            with open("log.txt", "a") as f:
-                f.write(f"[{datetime.now()}]: {eventmsg}\n")
-        except Exception as e:
-            print(str(e))
-
 discordbot = DiscordBot(client)
 discordbot.start()
 
 cb_handler = CallbackHandler(client, discordbot)
 
 app = flask.Flask(__name__)
+
 
 @app.route('/api/v1/send_message', methods=['GET'])
 def api_message():
@@ -133,8 +123,9 @@ def api_message():
         message = str(request.args['message'])
         cb_handler.queue_message(message)
         return 'message success'
-    
+
     return 'message failure'
+
 
 @app.route('/api/v1/give_role', methods=['GET'])
 def api_():
@@ -144,8 +135,9 @@ def api_():
         role = str(request.args['role'])
         cb_handler.queue_role(uuid, role)
         return 'role passed onto discord bot'
-    
+
     return 'role failure'
+
 
 print("attempting to start api")
 app.run()

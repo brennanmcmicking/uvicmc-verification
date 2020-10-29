@@ -1,3 +1,4 @@
 log.txt
 secrets.py
 .prettierignore
+*.pyc
