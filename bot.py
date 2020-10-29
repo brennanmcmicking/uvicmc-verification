@@ -7,6 +7,13 @@ import threading
 
 import flask
 from flask import request
+from flask import Response
+
+# jacob bot imports
+import os 
+from PIL import Image, ImageFont, ImageDraw
+from io import BytesIO
+
 
 # THIS IS NOT THE UVICMC GUILD ID! THIS IS THE DEDOTATED WHAM GUILD ID!! CHANGE IT BEFORE DEPLOYING THIS
 UVICMC_GUILDID = 219649098989568000
@@ -21,18 +28,45 @@ async def on_ready():
 
 @client.event
 async def on_message(message):
-    if message.author != client.user:
-        if message.content.startswith("!link"):
-            discorduuid = message.author.id
-            mcusername = message.content.split(' ')[1]
-            await message.channel.send(f"bot working. username: {mcusername}")
-            '''
-            res = await requests.get(f"https://api.uvicmc.net/v1/discord/link?username={mcusername}&discorduuid={discorduuid}")
-            if res.status_code == 200:
-                message.author.send("An email has been sent to the netlink account associated with that Minecraft username. If you are not a UVic student and have been referred, please tell your referrer to check their email.")
-            else:
-                message.author.send(res["error"])
-            '''
+    print("message event")
+    if message.author == client.user:
+        return
+    
+    if message.content.startswith("!link"):
+        discorduuid = message.author.id
+        mcusername = message.content.split(' ')[1]
+        await message.channel.send(f"bot working. username: {mcusername}")
+        '''
+        res = await requests.get(f"https://api.uvicmc.net/v1/discord/link?username={mcusername}&discorduuid={discorduuid}")
+        if res.status_code == 200:
+            message.author.send("An email has been sent to the netlink account associated with that Minecraft username. If you are not a UVic student and have been referred, please tell your referrer to check their email.")
+        else:
+            message.author.send(res["error"])
+        '''
+        
+    if('stuff' in message.content):
+        author = str(message.author)
+        url = str(message.author.avatar_url)
+        response = requests.get(url)
+        profile = Image.open(BytesIO(response.content))
+        profileLayer = profile.resize((222, 222))
+        baseImage = Image.open("base.png")
+        baseImage.paste(profileLayer, (8, 42))
+        font = ImageFont.truetype('Minecraftia-Regular.ttf', size=27)
+        output_1 = author
+        output_2 = ""
+        if(len(author) > 13):
+            output_1 = author[:13]
+            output_2 = author[13:]
+        ImageDraw.Draw(baseImage).text((250, 80), output_1, fill=(255, 255, 255), font=font)
+        ImageDraw.Draw(baseImage).text((250, 110), output_2, fill=(255, 255, 255), font=font)
+
+        arr = BytesIO()
+        baseImage.save(arr, format='PNG')
+        arr.seek(0)
+
+        channel = client.get_channel(349785662058135553)
+        await channel.send(message.author.mention, file=discord.File(arr, f'shut-the-fuck-up-{message.author.name}.png'.replace(' ', '-')))
 
 
 class DiscordBot(threading.Thread):
@@ -45,7 +79,7 @@ class DiscordBot(threading.Thread):
 
     async def receive_success(self, discorduuid, roleuid):
         print(f"attempting to give user {discorduuid} role {roleuid}")
-        uvicmc = client.get_guild(UVICMC_GUILDID)
+        uvicmc = self.client.get_guild(UVICMC_GUILDID)
         print(uvicmc.name)
         member = await uvicmc.fetch_member(discorduuid)
         print(member.name)
@@ -129,6 +163,7 @@ def api_message():
 
 @app.route('/api/v1/give_role', methods=['GET'])
 def api_():
+<<<<<<< HEAD
     print("received api call")
     if 'uuid' in request.args and 'role' in request.args:
         uuid = str(request.args['uuid'])
@@ -136,6 +171,22 @@ def api_():
         cb_handler.queue_role(uuid, role)
         return 'role passed onto discord bot'
 
+=======
+    # print("received api call")
+    key = request.headers.get('X-Api-Key')
+    if key is None:
+        return Response('no key providied', status = 401, mimetype='application\json')
+    
+    if key == secrets.get_api_key():  
+        if 'uuid' in request.args and 'role' in request.args:
+            uuid = str(request.args['uuid'])
+            role = str(request.args['role'])
+            cb_handler.queue_role(uuid, role)
+            return ('role passed onto discord bot', 200)
+        else:
+            return ('no uuid or role provided', 400)
+    
+>>>>>>> 6ccf868e234e0e014106ac0b2bee1aae5f278485
     return 'role failure'
 
 
