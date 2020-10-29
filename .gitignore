@@ -2,3 +2,6 @@ log.txt
 secrets.py
 .prettierignore
 *.pyc
+uvicmc-discordbot.log
+Minecraftia-Regular.ttf
+.vscode/
