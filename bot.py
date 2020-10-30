@@ -11,15 +11,9 @@ import queue
 from discord.ext import tasks, commands
 import discord
 import secrets
-# import logging
-
-# Discord imports
-
-# API imports
-
-# jacob bot imports
 
 
+# For the record, these uuids are NOT secrets! They can be accessed by anybody by going onto Discord
 # THIS IS NOT THE UVICMC GUILD ID! THIS IS THE DEDOTATED WHAM GUILD ID!! CHANGE IT BEFORE DEPLOYING THIS
 UVICMC_GUILDID = 219649098989568000
 # THIS IS THE MEMES CHANNEL IN DEDOTATED WHAMMM
@@ -69,47 +63,6 @@ async def on_message(message):
         else:
             message.author.send(res["error"])
         '''
-
-    # This is the stuff-bot.
-    # If someone says "stuff" in their message then the bot grabs their username
-    # and avatar image and produces an image with it then sends it into the memes channel
-    # and tags them
-    if('im stuff' in message.content.replace('\'', '').lower()):
-        # constant:
-        MAX_LINE_LENGTH = 13
-        author = str(message.author)
-        # logging.info(f'Sending a STUFF image to {author}')
-        url = str(message.author.avatar_url)
-        response = requests.get(url)
-        profile = Image.open(BytesIO(response.content))
-        profileLayer = profile.resize((222, 222))
-        baseImage = Image.open('base.png')
-        baseImage.paste(profileLayer, (8, 42))
-        font = ImageFont.truetype('Minecraftia-Regular.ttf', size=27)
-        output_1 = author
-        output_2 = ''
-        output_3 = ''
-        if len(author) > MAX_LINE_LENGTH:
-            output_1 = author[:MAX_LINE_LENGTH]
-            if len(author) > MAX_LINE_LENGTH*2:
-                output_2 = author[MAX_LINE_LENGTH:MAX_LINE_LENGTH*2]
-                output_3 = author[MAX_LINE_LENGTH*2:]
-            else:
-                output_2 = author[MAX_LINE_LENGTH:]
-        ImageDraw.Draw(baseImage).text((250, 80), output_1,
-                                       fill=(255, 255, 255), font=font)
-        ImageDraw.Draw(baseImage).text((250, 110), output_2,
-                                       fill=(255, 255, 255), font=font)
-        ImageDraw.Draw(baseImage).text((250, 140), output_3,
-                                       fill=(255, 255, 255), font=font)
-
-        arr = BytesIO()
-        baseImage.save(arr, format='PNG')
-        arr.seek(0)
-
-        # This is where the image gets sent, also the person whomst said 'im stuff' gets mentioned
-        channel = client.get_channel(MEMES_CHANNEL)
-        await channel.send(message.author.mention, file=discord.File(arr, f'shut-the-fuck-up-{message.author.name}.png'.replace(' ', '-')))
 
 
 class DiscordBot(threading.Thread):
